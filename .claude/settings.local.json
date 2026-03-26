@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls \"d:/양휘_개인폴더/개발 업무/React-Native/massager-app/app/\\(tabs\\)\")"
+    ]
+  }
+}

@@ -1,33 +1,47 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
+// =============================================
+// 하단 탭 네비게이터 레이아웃
+// 탭 2개: 채팅 목록(index) + 설정(settings)
+// =============================================
 
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useAuth } from '@/src/context/AuthContext';
+import { Ionicons } from '@expo/vector-icons';
+import { Redirect, Tabs } from 'expo-router';
+
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+    const { user } = useAuth();
 
+  // 로그인 안 됐으면 로그인 화면으로
+  if (!user) return <Redirect href="/auth/login" />;
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
-        tabBarButton: HapticTab,
-      }}>
+        tabBarActiveTintColor: '#4A90D9',
+        tabBarInactiveTintColor: '#aaa',
+        headerStyle: { backgroundColor: '#fff' },
+        headerTintColor: '#1a1a1a',
+        tabBarStyle: { backgroundColor: '#fff', borderTopColor: '#f0f0f0' },
+      }}
+    >
+      {/* 채팅 목록 탭 */}
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          title: '채팅',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="chatbubble-ellipses-outline" size={size} color={color} />
+          ),
         }}
       />
+
+      {/* 설정 탭 */}
       <Tabs.Screen
-        name="explore"
+        name="settings"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: '설정',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="settings-outline" size={size} color={color} />
+          ),
         }}
       />
     </Tabs>
