@@ -4,6 +4,7 @@
 // 나중에 로그아웃, 알림 설정, 프로필 편집 등 추가 가능
 // =============================================
 
+import { useAuth } from '@/src/context/AuthContext';
 import { CURRENT_USER } from '@/src/data/dummyData';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -19,46 +20,13 @@ function SettingRow({ label, value, onPress }: { label: string; value?: string; 
   );
 }
 
-//요기부터 수정하기!!!
-const handleLogout = async () => {
-    setError('');
+export default function SettingsScreen() {
+  const { logout } = useAuth();
 
-    if (!email.trim() || !password.trim() || !passwordConfirm.trim()) {
-      setError('모든 항목을 입력해주세요.');
-      return;
-    }
-    if (password !== passwordConfirm) {
-      setError('비밀번호가 일치하지 않습니다.');
-      return;
-    }
-    if (password.length < 6) {
-      setError('비밀번호는 6자 이상이어야 합니다.');
-      return;
-    }
-
-    try {
-      const auth = getAuth(app);
-      const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
-      login(userCredential.user.email!);
-    } catch (e: any) {
-      switch (e.code) {
-        case 'auth/email-already-in-use':
-          setError('이미 사용 중인 이메일입니다.');
-          break;
-        case 'auth/invalid-email':
-          setError('이메일 형식이 올바르지 않습니다.');
-          break;
-        case 'auth/weak-password':
-          setError('비밀번호가 너무 약합니다. 6자 이상 입력해주세요.');
-          break;
-        default:
-          setError('회원가입 중 오류가 발생했습니다.');
-      }
-    }
+  const handleLogout = () => {
+    logout();
   };
 
-
-export default function SettingsScreen() {
   return (
     <ScrollView style={styles.container}>
       {/* 프로필 영역 */}
