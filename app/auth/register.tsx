@@ -1,6 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { useState } from 'react';
 import {
   StyleSheet,
@@ -14,44 +12,50 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/src/context/AuthContext';
 import app from '@/src/services/firebase';
+import { createUserWithEmailAndPassword, getAuth } from 'firebase/auth';
 
-export default function LoginScreen() {
+export default function RegisterScreen() {
   const router = useRouter();
-
-  const [id, setID] = useState('');
-  const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
-  const [error, setError] = useState('');
-
   const { login } = useAuth();
 
-  const handleLogin = async () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [passwordConfirm, setPasswordConfirm] = useState('');
+  const [error, setError] = useState('');
+
+  const handleRegister = async () => {
     setError('');
-    if (!id.trim() || !password.trim()) {
-      setError('이메일과 비밀번호를 입력해주세요.');
+
+    if (!email.trim() || !password.trim() || !passwordConfirm.trim()) {
+      setError('모든 항목을 입력해주세요.');
+      return;
+    }
+    if (password !== passwordConfirm) {
+      setError('비밀번호가 일치하지 않습니다.');
+      return;
+    }
+    if (password.length < 6) {
+      setError('비밀번호는 6자 이상이어야 합니다.');
       return;
     }
 
     try {
-      await AsyncStorage.setItem('rememberMe', rememberMe ? 'true' : 'false');
       const auth = getAuth(app);
-      const loginData = await signInWithEmailAndPassword(auth, id.trim(), password);
-      login(loginData.user.email!);
+      const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
+      login(userCredential.user.email!);
     } catch (e: any) {
       switch (e.code) {
-        case 'auth/user-not-found':
-        case 'auth/wrong-password':
-        case 'auth/invalid-credential':
-          setError('이메일 또는 비밀번호가 올바르지 않습니다.');
+        case 'auth/email-already-in-use':
+          setError('이미 사용 중인 이메일입니다.');
           break;
         case 'auth/invalid-email':
           setError('이메일 형식이 올바르지 않습니다.');
           break;
-        case 'auth/too-many-requests':
-          setError('로그인 시도가 너무 많습니다. 잠시 후 다시 시도해주세요.');
+        case 'auth/weak-password':
+          setError('비밀번호가 너무 약합니다. 6자 이상 입력해주세요.');
           break;
         default:
-          setError(e.code + ': ' + e.message);
+          setError('회원가입 중 오류가 발생했습니다.');
       }
     }
   };
@@ -60,8 +64,8 @@ export default function LoginScreen() {
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView style={styles.container} behavior="padding">
         <View style={styles.header}>
-          <Text style={styles.appName}>Messenger</Text>
-          <Text style={styles.subtitle}>계속하려면 로그인하세요</Text>
+          <Text style={styles.appName}>회원가입</Text>
+          <Text style={styles.subtitle}>새 계정을 만들어보세요</Text>
         </View>
 
         <View style={styles.form}>
@@ -69,8 +73,8 @@ export default function LoginScreen() {
             <Text style={styles.label}>이메일</Text>
             <TextInput
               style={styles.input}
-              value={id}
-              onChangeText={setID}
+              value={email}
+              onChangeText={setEmail}
               placeholder="example@email.com"
               placeholderTextColor="#bbb"
               keyboardType="email-address"
@@ -85,32 +89,32 @@ export default function LoginScreen() {
               style={styles.input}
               value={password}
               onChangeText={setPassword}
-              placeholder="비밀번호 입력"
+              placeholder="6자 이상 입력"
               placeholderTextColor="#bbb"
               secureTextEntry
             />
           </View>
 
-          {/* 로그인 상태 유지 체크박스 */}
-          <TouchableOpacity
-            style={styles.rememberRow}
-            onPress={() => setRememberMe(!rememberMe)}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
-              {rememberMe && <Text style={styles.checkmark}>✓</Text>}
-            </View>
-            <Text style={styles.rememberText}>로그인 상태 유지</Text>
-          </TouchableOpacity>
+          <View style={styles.inputWrapper}>
+            <Text style={styles.label}>비밀번호 확인</Text>
+            <TextInput
+              style={styles.input}
+              value={passwordConfirm}
+              onChangeText={setPasswordConfirm}
+              placeholder="비밀번호 재입력"
+              placeholderTextColor="#bbb"
+              secureTextEntry
+            />
+          </View>
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
-          <TouchableOpacity style={styles.loginBtn} onPress={handleLogin} activeOpacity={0.8}>
-            <Text style={styles.loginText}>로그인</Text>
+          <TouchableOpacity style={styles.registerBtn} onPress={handleRegister} activeOpacity={0.8}>
+            <Text style={styles.registerText}>가입하기</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => router.push('/auth/register')} activeOpacity={0.7}>
-            <Text style={styles.registerLink}>계정이 없으신가요? <Text style={styles.registerLinkBold}>회원가입</Text></Text>
+          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
+            <Text style={styles.loginLink}>이미 계정이 있으신가요? <Text style={styles.loginLinkBold}>로그인</Text></Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -162,39 +166,12 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
     backgroundColor: '#fafafa',
   },
-  rememberRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderWidth: 1.5,
-    borderColor: '#ccc',
-    borderRadius: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxChecked: {
-    backgroundColor: '#4A90D9',
-    borderColor: '#4A90D9',
-  },
-  checkmark: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  rememberText: {
-    fontSize: 13,
-    color: '#555',
-  },
   error: {
     fontSize: 12,
     color: '#e53935',
     marginTop: -4,
   },
-  loginBtn: {
+  registerBtn: {
     height: 50,
     backgroundColor: '#4A90D9',
     borderRadius: 12,
@@ -202,18 +179,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 8,
   },
-  loginText: {
+  registerText: {
     color: '#fff',
     fontSize: 15,
     fontWeight: '700',
   },
-  registerLink: {
+  loginLink: {
     textAlign: 'center',
     fontSize: 13,
     color: '#888',
     marginTop: 4,
   },
-  registerLinkBold: {
+  loginLinkBold: {
     color: '#4A90D9',
     fontWeight: '600',
   },

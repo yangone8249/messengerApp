@@ -1,34 +1,54 @@
+import app from '@/src/services/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAuth, onAuthStateChanged, signOut, User } from 'firebase/auth';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
+const auth = getAuth(app);
+
 const AuthContext = createContext<{
-  user: string | null;
-  login: (token: string) => void;
+  user: User | null;
+  isLoading: boolean;
+  login: (email: string) => void;
   logout: () => void;
-}>({ user: null, login: () => {}, logout: () => {} });
+}>({ user: null, isLoading: true, login: () => {}, logout: () => {} });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // 앱 시작 시 저장된 토큰 불러오기
+  // 앱 시작 시 딱 한 번 rememberMe 확인
   useEffect(() => {
-    AsyncStorage.getItem('token').then((token) => {
-      if (token) setUser(token);
-    });
+    const checkRememberMe = async () => {
+      if (auth.currentUser) {
+        const rememberMe = await AsyncStorage.getItem('rememberMe');
+        if (rememberMe === 'true') {
+          await signOut(auth);
+        }
+      }
+      setIsLoading(false);
+    };
+    checkRememberMe();
   }, []);
 
-  const login = async (token: string) => {
-    await AsyncStorage.setItem('token', token);
-    setUser(token);
+  // 로그인/로그아웃 상태 변화만 감지
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setUser(firebaseUser);
+    });
+    return unsubscribe;
+  }, []);
+
+  const login = (_email: string) => {
+    setUser(auth.currentUser);
   };
 
   const logout = async () => {
-    await AsyncStorage.removeItem('token');
-    setUser(null);
+    await AsyncStorage.removeItem('rememberMe');
+    await signOut(auth);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

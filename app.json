@@ -4,6 +4,10 @@
     "slug": "massager-app",
     "version": "1.0.0",
     "orientation": "portrait",
+    "jsEngine": "hermes",
+    "ios": {
+      "jsEngine": "jsc"
+    },
     "icon": "./assets/images/icon.png",
     "scheme": "massagerapp",
     "userInterfaceStyle": "automatic",

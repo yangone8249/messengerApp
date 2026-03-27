@@ -1,13 +1,15 @@
-// firebase.js
-import { initializeApp } from "firebase/app";
+// Firebase 앱 초기화만 담당
+// auth, firestore 등은 각 파일에서 필요할 때 직접 호출
+// ex) import app from './firebase'; const db = getFirestore(app);
+import { initializeApp } from 'firebase/app';
 
 const firebaseConfig = {
-  apiKey: "AIzaSy...",
-  authDomain: "messengerapp-4066d.firebaseapp.com",
-  projectId: "messengerapp-4066d",
-  storageBucket: "messengerapp-4066d.firebasestorage.app",
-  messagingSenderId: "63977887961",
-  appId: "1:63977887961:web:0e18b962bf4cf6ab1286c8",
+  apiKey: 'AIzaSyC5HidxYG-LLrch3z42J1SKE-Uume5xJmU',
+  authDomain: 'react-native-project-a3902.firebaseapp.com',
+  projectId: 'react-native-project-a3902',
+  storageBucket: 'react-native-project-a3902.firebasestorage.app',
+  messagingSenderId: '124761425586',
+  appId: '1:124761425586:web:3b90af0dbfd7939f74ebab',
 };
 
 const app = initializeApp(firebaseConfig);

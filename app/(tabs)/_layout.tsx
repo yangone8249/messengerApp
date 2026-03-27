@@ -3,16 +3,11 @@
 // 탭 2개: 채팅 목록(index) + 설정(settings)
 // =============================================
 
-import { useAuth } from '@/src/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
-import { Redirect, Tabs } from 'expo-router';
+import { Tabs } from 'expo-router';
 
 
 export default function TabLayout() {
-    const { user } = useAuth();
-
-  // 로그인 안 됐으면 로그인 화면으로
-  if (!user) return <Redirect href="/auth/login" />;
   return (
     <Tabs
       screenOptions={{
