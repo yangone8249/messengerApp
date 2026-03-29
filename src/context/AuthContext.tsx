@@ -4,13 +4,13 @@ import { getAuth, onAuthStateChanged, signOut, User } from 'firebase/auth';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
 const auth = getAuth(app);
+let sessionChecked = false;
 
 const AuthContext = createContext<{
   user: User | null;
   isLoading: boolean;
-  login: (email: string) => void;
   logout: () => void;
-}>({ user: null, isLoading: true, login: () => {}, logout: () => {} });
+}>({ user: null, isLoading: true, logout: () => {} });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -18,10 +18,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // 앱 시작 시 딱 한 번 rememberMe 확인
   useEffect(() => {
+    if (sessionChecked) {
+      setIsLoading(false);
+      return;
+    }
+    sessionChecked = true;
+
     const checkRememberMe = async () => {
       if (auth.currentUser) {
         const rememberMe = await AsyncStorage.getItem('rememberMe');
-        if (rememberMe === 'true') {
+        if (rememberMe !== 'true') {
           await signOut(auth);
         }
       }
@@ -38,9 +44,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return unsubscribe;
   }, []);
 
-  const login = (_email: string) => {
-    setUser(auth.currentUser);
-  };
 
   const logout = async () => {
     await AsyncStorage.removeItem('rememberMe');
@@ -48,7 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -23,7 +23,6 @@ export default function LoginScreen() {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
 
-  const { login } = useAuth();
 
   const handleLogin = async () => {
     setError('');
@@ -36,7 +35,6 @@ export default function LoginScreen() {
       await AsyncStorage.setItem('rememberMe', rememberMe ? 'true' : 'false');
       const auth = getAuth(app);
       const loginData = await signInWithEmailAndPassword(auth, id.trim(), password);
-      login(loginData.user.email!);
     } catch (e: any) {
       switch (e.code) {
         case 'auth/user-not-found':
@@ -94,7 +92,10 @@ export default function LoginScreen() {
           {/* 로그인 상태 유지 체크박스 */}
           <TouchableOpacity
             style={styles.rememberRow}
-            onPress={() => setRememberMe(!rememberMe)}
+            onPress={() => {setRememberMe(!rememberMe);
+              console.log(rememberMe);
+            }
+            }
             activeOpacity={0.7}
           >
             <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
