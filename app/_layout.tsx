@@ -1,10 +1,8 @@
-import { Redirect, Stack } from 'expo-router';
+import { AuthProvider, useAuth } from '@/src/context/AuthContext';
+import { Redirect, Stack, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View } from 'react-native';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
-import { AuthProvider } from '@/src/context/AuthContext';
-import { useAuth } from '@/src/context/AuthContext';
-import { usePathname } from 'expo-router';
 
 // AuthProvider 안에서 useAuth()를 써야 하므로 별도 컴포넌트로 분리
 function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -36,6 +34,8 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 }
 
 export default function RootLayout() {
+  
+
   return (
     <AuthProvider>
       <KeyboardProvider>

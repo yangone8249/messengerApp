@@ -10,15 +10,15 @@ import {
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useAuth } from '@/src/context/AuthContext';
 import app from '@/src/services/firebase';
+import { createUserProfile } from '@/src/services/userService';
 import { createUserWithEmailAndPassword, getAuth } from 'firebase/auth';
 
 export default function RegisterScreen() {
   const router = useRouter();
-  const { login } = useAuth();
 
   const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [error, setError] = useState('');
@@ -26,7 +26,7 @@ export default function RegisterScreen() {
   const handleRegister = async () => {
     setError('');
 
-    if (!email.trim() || !password.trim() || !passwordConfirm.trim()) {
+    if (!email.trim() || !name.trim() || !password.trim() || !passwordConfirm.trim()) {
       setError('모든 항목을 입력해주세요.');
       return;
     }
@@ -40,9 +40,12 @@ export default function RegisterScreen() {
     }
 
     try {
+      console.log("회원가입 시작")
       const auth = getAuth(app);
       const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
-      login(userCredential.user.email!);
+      console.log("userCredential : "+userCredential);
+      await createUserProfile(userCredential.user.uid, email.trim(), name);
+      console.log("createUserProfile 함수 끝 : ");
     } catch (e: any) {
       switch (e.code) {
         case 'auth/email-already-in-use':
@@ -78,6 +81,20 @@ export default function RegisterScreen() {
               placeholder="example@email.com"
               placeholderTextColor="#bbb"
               keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+
+          <View style={styles.inputWrapper}>
+            <Text style={styles.label}>이름</Text>
+            <TextInput
+              style={styles.input}
+              value={name}
+              onChangeText={setName}
+              placeholder="홍길동"
+              placeholderTextColor="#bbb"
+              keyboardType="name-phone-pad"
               autoCapitalize="none"
               autoCorrect={false}
             />

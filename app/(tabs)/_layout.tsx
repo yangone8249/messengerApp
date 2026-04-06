@@ -29,6 +29,17 @@ export default function TabLayout() {
         }}
       />
 
+      {/* 유저 목록 탭 */}
+      <Tabs.Screen
+        name="users"
+        options={{
+          title: '유저',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="people-outline" size={size} color={color} />
+          ),
+        }}
+      />
+
       {/* 설정 탭 */}
       <Tabs.Screen
         name="settings"

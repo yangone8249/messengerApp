@@ -4,9 +4,9 @@
 // 채팅방 클릭 → /chat/[id] 로 이동
 // =============================================
 
-import React, { useEffect, useState } from 'react';
-import { FlatList, View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 
 import ChatListItem from '@/src/components/ChatListItem';
 import { getChats } from '@/src/services/chatService';
