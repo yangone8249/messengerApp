@@ -16,16 +16,21 @@ export interface Message {
   id: string;
   chatId: string;       // 어느 채팅방에 속하는지
   senderId: string;     // 보낸 사람 ID
+  senderName: string;     // 보낸 사람 Name
   text: string;
   createdAt: number;    // timestamp (ms)
   isRead?: boolean;
 }
 
+export type ChatType = 'self' | 'direct' | 'group';
+
 /** 채팅방 */
 export interface Chat {
   id: string;
-  participants: User[]; // 참여자 목록
-  lastMessage?: Message;
+  type: ChatType;
+  participants: User[];
+  lastMessage?: string;
+  unreadCounts: Record<string, number>;
   unreadCount: number;
   updatedAt: number;
 }

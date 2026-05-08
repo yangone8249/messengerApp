@@ -4,25 +4,32 @@
 // 채팅방 클릭 → /chat/[id] 로 이동
 // =============================================
 
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 
 import ChatListItem from '@/src/components/ChatListItem';
-import { getChats } from '@/src/services/chatService';
+import { useAuth } from '@/src/context/AuthContext';
+import { leaveChat, getChats } from '@/src/services/chatService';
 import { Chat } from '@/src/types';
 
 export default function ChatListScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const [chats, setChats] = useState<Chat[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    getChats().then((data) => {
-      setChats(data);
-      setLoading(false);
-    });
-  }, []);
+  // 화면 포커스될 때마다 재조회 (탭 전환, 뒤로가기 등)
+  useFocusEffect(
+    useCallback(() => {
+      if (!user?.uid) return;
+      setLoading(true);
+      getChats(user.uid).then((data) => {
+        setChats(data);
+        setLoading(false);
+      });
+    }, [user?.uid])
+  );
 
   if (loading) {
     return (
@@ -47,7 +54,12 @@ export default function ChatListScreen() {
       renderItem={({ item }) => (
         <ChatListItem
           chat={item}
+          myUid={user?.uid ?? ''}
           onPress={(chat) => router.push(`/chat/${chat.id}`)}
+          onDelete={async (chatId) => {
+            await leaveChat(chatId, user?.uid ?? '');
+            setChats(prev => prev.filter(c => c.id !== chatId));
+          }}
         />
       )}
       style={styles.list}

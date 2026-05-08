@@ -7,10 +7,10 @@
 // 내부 구현이 바뀌어도 화면 코드는 변경 불필요
 // =============================================
 
-import { addDoc, collection, getDocs, getFirestore, query, where } from 'firebase/firestore';
-import { DUMMY_CHATS, DUMMY_MESSAGES } from '../data/dummyData';
+import { addDoc, collection, deleteDoc, deleteField, doc, getDocs, getFirestore, increment, orderBy, query, updateDoc, where } from 'firebase/firestore';
 import { Chat, Message } from '../types';
 import app from './firebase';
+import { getUser } from './userService';
 
 const db = getFirestore(app);
 
@@ -43,13 +43,21 @@ export async function openChatRoom(myUid: string, targetUid: string): Promise<st
 
   
   console.log("existing : ",existing);
-  if (existing) return existing.id;
-
+  if (existing) {
+    console.log("existing.id : ",existing?.id);
+    return existing.id;
+  }
   console.log("신규 방 생성");
 
+  const participantList = isSelf ? [myUid] : [myUid, targetUid];
+  const unreadCounts: Record<string, number> = {};
+  participantList.forEach(uid => { unreadCounts[uid] = 0; });
+
   const docRef = await addDoc(collection(db, 'chatRooms'), {
-    participants: isSelf ? [myUid] : [myUid, targetUid],
+    participants: participantList,
+    type: isSelf ? 'self' : 'direct',
     lastMessage: '',
+    unreadCounts,
     createdAt: new Date(),
   });
   return docRef.id;
@@ -59,19 +67,82 @@ export async function openChatRoom(myUid: string, targetUid: string): Promise<st
  * 채팅방 목록 가져오기
  * Firebase: collection('chats').where('participants', 'array-contains', userId)
  */
-export async function getChats(myUid?: string): Promise<Chat[]> {
+export async function getChats(myUid: string): Promise<Chat[]> {
+  const q = query(
+    collection(db, 'chatRooms'),
+    where('participants', 'array-contains', myUid),
+    orderBy('updatedAt', 'desc')
+  );
+  const snapshot = await getDocs(q);
 
-  // console.log("채팅방 목록 가져오기() 진입");
 
-  // const q = query(
-  //   collection(db, 'chatRooms'),
-  //   where('participants', 'array-contains', myUid)
-  // );
-  // const snapshot = await getDocs(q);
+    console.log("getChats() 함수 진입!!!!");
 
-  // console.log("snapshot : ",snapshot);
-  
-  return Promise.resolve(DUMMY_CHATS);
+  const chats = await Promise.all(
+    
+      
+
+    snapshot.docs.map(async (docSnap) => {
+      const data = docSnap.data();
+      console.log("data : ",data);
+      
+      const participantUids: string[] = data.participants;
+      console.log("participantUids : ",participantUids);
+      
+      const participants = await Promise.all(
+        participantUids.map(async (uid) => {
+          const profile = await getUser(uid);
+          return { id: uid, name: profile?.name ?? uid };
+        })
+      );
+      console.log("participants : ",participants);
+
+      return {
+        id: docSnap.id,
+        type: data.type ?? 'direct',
+        participants,
+        lastMessage: data.lastMessage,
+        unreadCounts: data.unreadCounts ?? {},
+        unreadCount: 0,
+        updatedAt: data.updatedAt ?? data.createdAt ?? Date.now(),
+      } as Chat;
+    })
+  );
+
+  // 채팅 기록이 있는 방만 반환 (lastMessage가 빈 문자열이거나 없으면 제외)
+  return chats.filter(chat => chat.lastMessage != null && chat.lastMessage !== ('' as any));
+}
+
+/**
+ * 채팅방 나가기
+ * - 내 uid를 participants에서 제거
+ * - 참가자가 없으면 방 자체 삭제
+ */
+export async function leaveChat(chatId: string, myUid: string): Promise<void> {
+  const roomRef = doc(db, 'chatRooms', chatId);
+  const roomSnap = await getDocs(query(collection(db, 'chatRooms'), where('__name__', '==', chatId)));
+  const participants: string[] = roomSnap.docs[0]?.data().participants ?? [];
+  const remaining = participants.filter(uid => uid !== myUid);
+
+  console.log("leaveChat 진입")
+  console.log("remaining : ",remaining)
+  if (remaining.length === 0) {
+    await deleteDoc(roomRef);
+  } else {
+    await updateDoc(roomRef, {
+      participants: remaining,
+      [`unreadCounts.${myUid}`]: deleteField(),
+    });
+  }
+}
+
+/**
+ * 채팅방 입장 시 내 unreadCounts 0으로 초기화
+ */
+export async function markAsRead(chatId: string, myUid: string): Promise<void> {
+  await updateDoc(doc(db, 'chatRooms', chatId), {
+    [`unreadCounts.${myUid}`]: 0,
+  });
 }
 
 /**
@@ -79,7 +150,12 @@ export async function getChats(myUid?: string): Promise<Chat[]> {
  * Firebase: collection('messages').where('chatId', '==', chatId).orderBy('createdAt')
  */
 export async function getMessages(chatId: string): Promise<Message[]> {
-  return Promise.resolve(DUMMY_MESSAGES[chatId] ?? []);
+  const q = query(
+    collection(db, 'chatRooms', chatId, 'messages'),
+    orderBy('createdAt', 'asc')
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
 }
 
 /**
@@ -89,17 +165,49 @@ export async function getMessages(chatId: string): Promise<Message[]> {
 export async function sendMessage(
   chatId: string,
   senderId: string,
+  senderName: string,
   text: string
 ): Promise<Message> {
-  const newMessage: Message = {
-    id: `msg_${Date.now()}`,
+
+  console.log("chatService.ts 진입")
+  console.log("sendMessage 함수 진입")
+  console.log("addDoc [chatId : ", chatId, ", senderId : ",senderId, ", senderName : ",senderName, ", text : ",text, "]",)
+  // Firestore에 메시지 저장
+  const docRef = await addDoc(
+    collection(db, 'chatRooms', chatId, 'messages'),
+    {
+      chatId,
+      senderId,
+      senderName,
+      text,
+      createdAt: Date.now(),
+      isRead: false,
+    }
+  );
+
+  // 채팅방 lastMessage 업데이트 + 상대방 unreadCounts +1
+  const roomRef = doc(db, 'chatRooms', chatId);
+  const roomSnap = await getDocs(query(collection(db, 'chatRooms'), where('__name__', '==', chatId)));
+  const participants: string[] = roomSnap.docs[0]?.data().participants ?? [];
+
+  const updates: Record<string, any> = {
+    lastMessage: text,
+    updatedAt: Date.now(),
+  };
+  participants.forEach(uid => {
+    if (uid !== senderId) {
+      updates[`unreadCounts.${uid}`] = increment(1);
+    }
+  });
+  await updateDoc(roomRef, updates);
+
+  return {
+    id: docRef.id,
     chatId,
     senderId,
+    senderName,
     text,
     createdAt: Date.now(),
     isRead: false,
   };
-  // 더미: 메모리에만 추가 (앱 재시작 시 초기화됨)
-  DUMMY_MESSAGES[chatId] = [...(DUMMY_MESSAGES[chatId] ?? []), newMessage];
-  return Promise.resolve(newMessage);
 }

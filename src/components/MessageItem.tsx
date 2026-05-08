@@ -5,24 +5,26 @@
 // =============================================
 
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Message } from '../types';
-import { CURRENT_USER } from '../data/dummyData';
-
 interface Props {
   message: Message;
+  myUid: string;
 }
 
-function formatTime(ms: number): string {
-  const d = new Date(ms);
+function formatTime(ms: any): string {
+  const num = typeof ms === 'number' ? ms : Number(ms);
+  
+  if (isNaN(num)) return '';
+  const d = new Date(num);
   const h = d.getHours().toString().padStart(2, '0');
   const m = d.getMinutes().toString().padStart(2, '0');
   return `${h}:${m}`;
 }
 
-export default function MessageItem({ message }: Props) {
-  const isMe = message.senderId === CURRENT_USER.id;
-
+export default function MessageItem({ message, myUid }: Props) {
+  const isMe = message.senderId === myUid;
+  console.log(typeof message.createdAt, message.createdAt)
   return (
     <View style={[styles.row, isMe ? styles.rowRight : styles.rowLeft]}>
       {/* 내 메시지: 파란 말풍선 오른쪽 / 상대: 회색 말풍선 왼쪽 */}
@@ -84,8 +86,6 @@ const styles = StyleSheet.create({
   },
   timeRight: {
     marginRight: 6,
-    // 내 메시지: 말풍선 왼쪽에 시간 표시
-    order: -1, // React Native에서 order 미지원 → flexDirection으로 처리
   },
   timeLeft: {
     marginLeft: 6,

@@ -4,54 +4,92 @@
 // Chat 타입 데이터를 받아 렌더링
 // =============================================
 
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useAuth } from '@/src/context/AuthContext';
+import React, { useRef } from 'react';
+import Swipeable from 'react-native-gesture-handler/Swipeable';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Chat } from '../types';
-import { CURRENT_USER } from '../data/dummyData';
 
 interface Props {
   chat: Chat;
+  myUid: string;
   onPress: (chat: Chat) => void;
+  onDelete: (chatId: string) => void;
 }
 
-/** ms 단위 timestamp → 표시용 시간 문자열 */
-function formatTime(ms: number): string {
-  const diff = Date.now() - ms;
-  if (diff < 1000 * 60 * 60) return `${Math.floor(diff / 60000)}분 전`;
-  if (diff < 1000 * 60 * 60 * 24) return `${Math.floor(diff / 3600000)}시간 전`;
-  return `${Math.floor(diff / 86400000)}일 전`;
+/** Firestore Timestamp or ms → 오늘이면 HH:mm, 지난 날이면 M월 D일 */
+function formatTime(value: any): string {
+  const ms = value?.seconds ? value.seconds * 1000 : Number(value);
+  if (isNaN(ms)) return '';
+
+  const d = new Date(ms);
+  const now = new Date();
+  const isToday =
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
+  console.log("isToday : ",isToday);
+
+  if (isToday) {
+    console.log("if 진입 성공");
+    const h = d.getHours().toString().padStart(2, '0');
+    const m = d.getMinutes().toString().padStart(2, '0');
+    return `${h}:${m}`;
+  }
+    console.log("if 진입 실패");
+  return `${d.getMonth() + 1}월 ${d.getDate()}일`;
 }
 
-export default function ChatListItem({ chat, onPress }: Props) {
-  // 나를 제외한 상대방 이름
-  const other = chat.participants.find((u) => u.id !== CURRENT_USER.id);
-  const name = other?.name ?? '알 수 없음';
-  const lastText = chat.lastMessage?.text ?? '';
-  const timeStr = chat.lastMessage ? formatTime(chat.lastMessage.createdAt) : '';
+export default function ChatListItem({ chat, myUid, onPress, onDelete }: Props) {
+  const swipeableRef = useRef<Swipeable>(null);
+  const auth = useAuth();
+  const other = chat.participants.find((u) => u.id !== myUid);
+  const name = chat.type === 'self'
+    ? `나와의 채팅 (${auth.user?.displayName ?? ''})`
+    : (other?.name ?? '알 수 없음');
+  const lastText = chat.lastMessage ?? '';
+  const timeStr = chat.updatedAt ? formatTime(chat.updatedAt) : '';
+
+  const handleDelete = () => {
+    swipeableRef.current?.close();
+    Alert.alert(
+      '채팅방 삭제',
+      '채팅방을 삭제하시겠습니까?',
+      [
+        { text: '취소', style: 'cancel' },
+        { text: '삭제', style: 'destructive', onPress: () => onDelete(chat.id) },
+      ]
+    );
+  };
+
+  const renderRightActions = () => (
+    <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete} activeOpacity={0.8}>
+      <Text style={styles.deleteBtnText}>삭제</Text>
+    </TouchableOpacity>
+  );
 
   return (
-    <TouchableOpacity style={styles.container} onPress={() => onPress(chat)} activeOpacity={0.7}>
-      {/* 아바타 자리 (텍스트 이니셜) */}
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>{name[0]}</Text>
-      </View>
+    <Swipeable ref={swipeableRef} renderRightActions={renderRightActions}>
+      <TouchableOpacity style={styles.container} onPress={() => onPress(chat)} activeOpacity={0.7}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>{name[0]}</Text>
+        </View>
 
-      {/* 중앙: 이름 + 마지막 메시지 */}
-      <View style={styles.content}>
-        <Text style={styles.name} numberOfLines={1}>{name}</Text>
-        <Text style={styles.lastMessage} numberOfLines={1}>{lastText}</Text>
-      </View>
+        <View style={styles.content}>
+          <Text style={styles.name} numberOfLines={1}>{name}</Text>
+          <Text style={styles.lastMessage} numberOfLines={1}>{lastText}</Text>
+        </View>
 
-      {/* 우측: 시간 + 안읽은 수 */}
-      <View style={styles.meta}>
-        <Text style={styles.time}>{timeStr}</Text>
-        {chat.unreadCount > 0 && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{chat.unreadCount}</Text>
-          </View>
-        )}
-      </View>
-    </TouchableOpacity>
+        <View style={styles.meta}>
+          <Text style={styles.time}>{timeStr}</Text>
+          {(chat.unreadCounts?.[myUid] ?? 0) > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{chat.unreadCounts[myUid]}</Text>
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
+    </Swipeable>
   );
 }
 
@@ -113,6 +151,17 @@ const styles = StyleSheet.create({
   badgeText: {
     color: '#fff',
     fontSize: 11,
+    fontWeight: '700',
+  },
+  deleteBtn: {
+    backgroundColor: '#e53935',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 72,
+  },
+  deleteBtnText: {
+    color: '#fff',
+    fontSize: 14,
     fontWeight: '700',
   },
 });

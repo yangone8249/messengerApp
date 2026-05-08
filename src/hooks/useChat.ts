@@ -6,7 +6,6 @@
 // =============================================
 
 import { useCallback, useEffect, useState } from 'react';
-import { CURRENT_USER } from '../data/dummyData';
 import { getMessages, sendMessage } from '../services/chatService';
 import { Message } from '../types';
 
@@ -16,9 +15,10 @@ interface UseChatReturn {
   send: (text: string) => Promise<void>;
 }
 
-export function useChat(chatId: string): UseChatReturn {
+export function useChat(chatId: string, myUid: string, myName: string): UseChatReturn {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  console.log(" useChat 호출 -> myName : ", myName)
 
   // 메시지 초기 로드
   useEffect(() => {
@@ -40,7 +40,8 @@ export function useChat(chatId: string): UseChatReturn {
   const send = useCallback(async (text: string) => {
     if (!text.trim()) return;
 
-    const newMsg = await sendMessage(chatId, CURRENT_USER.id, text.trim());
+    console.log("setMessages 호출 -> myName : ", myName)
+    const newMsg = await sendMessage(chatId, myUid, myName, text.trim());
     setMessages((prev) => [...prev, newMsg]);
   }, [chatId]);
 

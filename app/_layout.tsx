@@ -2,6 +2,7 @@ import { AuthProvider, useAuth } from '@/src/context/AuthContext';
 import { Redirect, Stack, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 // AuthProvider 안에서 useAuth()를 써야 하므로 별도 컴포넌트로 분리
@@ -37,6 +38,7 @@ export default function RootLayout() {
   
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <AuthProvider>
       <KeyboardProvider>
         <AuthGuard>
@@ -57,5 +59,6 @@ export default function RootLayout() {
       </KeyboardProvider>
       <StatusBar style="dark" />
     </AuthProvider>
+    </GestureHandlerRootView>
   );
 }

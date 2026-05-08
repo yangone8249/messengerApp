@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import app from '@/src/services/firebase';
 import { createUserProfile } from '@/src/services/userService';
-import { createUserWithEmailAndPassword, getAuth } from 'firebase/auth';
+import { createUserWithEmailAndPassword, getAuth, updateProfile } from 'firebase/auth';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -43,8 +43,8 @@ export default function RegisterScreen() {
       console.log("회원가입 시작")
       const auth = getAuth(app);
       const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
-      console.log("userCredential : "+userCredential);
-      await createUserProfile(userCredential.user.uid, email.trim(), name);
+      await updateProfile(userCredential.user, { displayName: name.trim() });
+      await createUserProfile(userCredential.user.uid, email.trim(), name.trim());
       console.log("createUserProfile 함수 끝 : ");
     } catch (e: any) {
       switch (e.code) {

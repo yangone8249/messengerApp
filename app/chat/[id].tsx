@@ -5,7 +5,7 @@
 // =============================================
 
 import { useLocalSearchParams, useNavigation } from 'expo-router';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -18,17 +18,35 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import MessageItem from '@/src/components/MessageItem';
-import { CURRENT_USER, DUMMY_CHATS } from '@/src/data/dummyData';
+import { useAuth } from '@/src/context/AuthContext';
+import { DUMMY_CHATS } from '@/src/data/dummyData';
 import { useChat } from '@/src/hooks/useChat';
+import { markAsRead } from '@/src/services/chatService';
+import { getUser } from '@/src/services/userService';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 
-
-
-console.log("채팅방 진입")
 export default function ChatRoomScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const navigation = useNavigation();
-  const { messages, isLoading, send } = useChat(id);
+  const { user } = useAuth();
+  const myUid = user?.uid ?? '';
+  const [myName, setMyName] = useState('');
+  const { messages, isLoading, send } = useChat(id, myUid, myName);
+
+  // 채팅방 진입 시 읽음 처리
+  useEffect(() => {
+    if (myUid && id) markAsRead(id, myUid);
+  }, [id, myUid]);
+
+  useEffect(() => {
+    if (user?.uid) {
+      getUser(user.uid).then(profile => {
+        console.log("profile : ", profile);
+        console.log("profile : ", profile?.name);
+        setMyName(profile?.name ?? user.email ?? '');
+      });
+    }
+  }, [user?.uid]);
   const [inputText, setInputText] = useState('');
   const flatListRef = useRef<FlatList>(null);
   // 안드로이드 하단 네비게이션 바 높이
@@ -38,7 +56,7 @@ export default function ChatRoomScreen() {
   // 헤더 타이틀을 상대방 이름으로 설정
   React.useLayoutEffect(() => {
     const chat = DUMMY_CHATS.find((c) => c.id === id);
-    const other = chat?.participants.find((u) => u.id !== CURRENT_USER.id);
+    const other = chat?.participants.find((u) => u.id !== myUid);
     navigation.setOptions({ title: other?.name ?? '채팅' });
   }, [id, navigation]);
 
@@ -48,6 +66,7 @@ export default function ChatRoomScreen() {
     setInputText('');
     await send(text);
     // 전송 후 최하단으로 스크롤
+    console.log("채팅 전송 완료!")
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
   };
 
@@ -72,7 +91,7 @@ export default function ChatRoomScreen() {
         ref={flatListRef}
         data={messages}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <MessageItem message={item} />}
+        renderItem={({ item }) => <MessageItem message={item} myUid={myUid} />}
         contentContainerStyle={styles.messageList}
         onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
       />

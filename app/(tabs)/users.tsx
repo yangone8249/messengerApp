@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -16,6 +17,7 @@ import { UserProfile, getUsers, searchUsersByName } from '@/src/services/userSer
 import { useAuth } from '@/src/context/AuthContext';
 
 export default function UsersScreen() {
+  const router = useRouter();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [usersNotLoad, setUsersNotLoad] = useState<UserProfile[]>([]);
   const [keyword, setKeyword] = useState('');
@@ -32,6 +34,7 @@ export default function UsersScreen() {
       console.log("data 결과 : ",data);
       let tempArr = data.map(a=>a.name);
       
+      setUsers(data);
       setUserArr(tempArr);
       console.log("userArr : ",userArr);
       setUsersNotLoad(data);
@@ -69,6 +72,7 @@ export default function UsersScreen() {
     console.log("targetUid : ", targetUid);
     const roomId = await openChatRoom(user.uid, targetUid);
     console.log("roomId : ", roomId);
+    router.push(`/chat/${roomId}`);
   };
 
   const renderItem = ({ item }: { item: UserProfile }) => (
