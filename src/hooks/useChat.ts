@@ -6,44 +6,56 @@
 // =============================================
 
 import { useCallback, useEffect, useState } from 'react';
-import { getMessages, sendMessage } from '../services/chatService';
+import { sendFileMessage, sendMessage, subscribeMessages } from '../services/chatService';
 import { Message } from '../types';
 
 interface UseChatReturn {
   messages: Message[];
   isLoading: boolean;
   send: (text: string) => Promise<void>;
+  sendFile: (fileUri: string, fileType: 'image' | 'file', fileName: string) => Promise<void>;
 }
 
 export function useChat(chatId: string, myUid: string, myName: string): UseChatReturn {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  console.log(" useChat 호출 -> myName : ", myName)
 
-  // 메시지 초기 로드
+  // // [기존] 1회성 메시지 로드 (getDocs)
+  // useEffect(() => {
+  //   let cancelled = false;
+  //   setIsLoading(true);
+  //   getMessages(chatId).then((msgs) => {
+  //     if (!cancelled) {
+  //       setMessages(msgs);
+  //       setIsLoading(false);
+  //     }
+  //   });
+  //   return () => { cancelled = true; };
+  // }, [chatId]);
+
+  // [신규] 실시간 메시지 구독 (onSnapshot)
+  // 메시지 추가될 때마다 자동 갱신, 채팅방 나갈 때 구독 자동 해제
   useEffect(() => {
-    let cancelled = false;
     setIsLoading(true);
-
-    getMessages(chatId).then((msgs) => {
-      if (!cancelled) {
-        setMessages(msgs);
-        setIsLoading(false);
-      }
+    const unsubscribe = subscribeMessages(chatId, (msgs) => {
+      setMessages(msgs);
+      setIsLoading(false);
     });
-
-    return () => { cancelled = true; };
-    // Firebase 사용 시: onSnapshot 리스너로 교체하여 실시간 업데이트 가능
+    return () => unsubscribe();
   }, [chatId]);
 
-  // 메시지 전송
   const send = useCallback(async (text: string) => {
     if (!text.trim()) return;
+    await sendMessage(chatId, myUid, myName, text.trim());
+  }, [chatId, myUid, myName]);
 
-    console.log("setMessages 호출 -> myName : ", myName)
-    const newMsg = await sendMessage(chatId, myUid, myName, text.trim());
-    setMessages((prev) => [...prev, newMsg]);
-  }, [chatId]);
+  const sendFile = useCallback(async (fileUri: string, fileType: 'image' | 'file', fileName: string) => {
+    console.log("fileUri : ",fileUri)
+    console.log("fileType : ",fileType)
+    console.log("fileName : ",fileName)
 
-  return { messages, isLoading, send };
+    await sendFileMessage(chatId, myUid, myName, fileUri, fileType, fileName);
+  }, [chatId, myUid, myName]);
+
+  return { messages, isLoading, send, sendFile };
 }

@@ -24,7 +24,6 @@ function formatTime(ms: any): string {
 
 export default function MessageItem({ message, myUid }: Props) {
   const isMe = message.senderId === myUid;
-  console.log(typeof message.createdAt, message.createdAt)
   return (
     <View style={[styles.row, isMe ? styles.rowRight : styles.rowLeft]}>
       {/* 내 메시지: 파란 말풍선 오른쪽 / 상대: 회색 말풍선 왼쪽 */}

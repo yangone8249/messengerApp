@@ -7,9 +7,12 @@
 // 내부 구현이 바뀌어도 화면 코드는 변경 불필요
 // =============================================
 
-import { addDoc, collection, deleteDoc, deleteField, doc, getDocs, getFirestore, increment, orderBy, query, updateDoc, where } from 'firebase/firestore';
+import { decode } from 'base64-arraybuffer';
+import * as FileSystem from 'expo-file-system/legacy';
+import { addDoc, collection, deleteDoc, deleteField, doc, getDocs, getFirestore, increment, onSnapshot, orderBy, query, updateDoc, where } from 'firebase/firestore';
 import { Chat, Message } from '../types';
 import app from './firebase';
+import { supabase } from './supabase';
 import { getUser } from './userService';
 
 const db = getFirestore(app);
@@ -114,6 +117,50 @@ export async function getChats(myUid: string): Promise<Chat[]> {
 }
 
 /**
+ * 채팅방 목록 실시간 구독 (onSnapshot)
+ */
+export function subscribeChats(
+  myUid: string,
+  callback: (chats: Chat[]) => void
+): () => void {
+  const q = query(
+    collection(db, 'chatRooms'),
+    where('participants', 'array-contains', myUid),
+    orderBy('updatedAt', 'desc')
+  );
+
+  const unsubscribe = onSnapshot(q, async (snapshot) => {
+    const chats = await Promise.all(
+      snapshot.docs.map(async (docSnap) => {
+        const data = docSnap.data();
+        const participantUids: string[] = data.participants;
+
+        const participants = await Promise.all(
+          participantUids.map(async (uid) => {
+            const profile = await getUser(uid);
+            return { id: uid, name: profile?.name ?? uid };
+          })
+        );
+
+        return {
+          id: docSnap.id,
+          type: data.type ?? 'direct',
+          participants,
+          lastMessage: data.lastMessage,
+          unreadCounts: data.unreadCounts ?? {},
+          unreadCount: 0,
+          updatedAt: data.updatedAt ?? data.createdAt ?? Date.now(),
+        } as Chat;
+      })
+    );
+
+    callback(chats.filter(chat => chat.lastMessage != null && chat.lastMessage !== ('' as any)));
+  });
+
+  return unsubscribe;
+}
+
+/**
  * 채팅방 나가기
  * - 내 uid를 participants에서 제거
  * - 참가자가 없으면 방 자체 삭제
@@ -146,8 +193,7 @@ export async function markAsRead(chatId: string, myUid: string): Promise<void> {
 }
 
 /**
- * 특정 채팅방의 메시지 목록 가져오기
- * Firebase: collection('messages').where('chatId', '==', chatId).orderBy('createdAt')
+ * 특정 채팅방의 메시지 목록 가져오기 (1회성)
  */
 export async function getMessages(chatId: string): Promise<Message[]> {
   const q = query(
@@ -156,6 +202,121 @@ export async function getMessages(chatId: string): Promise<Message[]> {
   );
   const snapshot = await getDocs(q);
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
+}
+
+/**
+ * 메시지 실시간 구독 (onSnapshot)
+ * 메시지가 추가될 때마다 callback 자동 호출
+ * 반환값(unsubscribe)을 useEffect 클린업에서 호출해서 구독 해제
+ */
+export function subscribeMessages(
+  chatId: string,
+  callback: (messages: Message[]) => void
+): () => void {
+  const q = query(
+    collection(db, 'chatRooms', chatId, 'messages'),
+    orderBy('createdAt', 'asc')
+  );
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
+    callback(messages);
+  });
+  return unsubscribe;
+}
+
+/**
+ * 파일/이미지 메시지 전송
+ * 1) Firebase Storage에 파일 업로드
+ * 2) Firestore에 fileUrl 포함 메시지 저장
+ */
+export async function sendFileMessage(
+  chatId: string,
+  senderId: string,
+  senderName: string,
+  fileUri: string,
+  fileType: 'image' | 'file',
+  fileName: string,
+): Promise<Message> {
+    console.log("chatService.ts -> sendFileMessage 함수 실행")
+  const BUCKET = 'massager-app-files';
+  const ext = fileName.split('.').pop() ?? 'bin';
+  const storagePath = `chats/${chatId}/${Date.now()}.${ext}`;
+
+  const mimeType = fileType === 'image' ? `image/${ext}` : `application/${ext}`;
+  const base64 = await FileSystem.readAsStringAsync(fileUri, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+  const arrayBuffer = decode(base64);
+
+    console.log("BUCKET : ",BUCKET)
+    console.log("ext : ",ext)
+    console.log("storagePath : ",storagePath)
+    console.log("mimeType : ",mimeType)
+    console.log("arrayBuffer : ",arrayBuffer)
+  
+    console.log("1")
+  const { error: uploadError } = await supabase.storage
+    .from(BUCKET)
+    .upload(storagePath, arrayBuffer, { contentType: mimeType, upsert: false });
+    
+    
+    console.log("uploadError : ",uploadError)
+  if (uploadError) throw uploadError;
+
+    console.log("2")
+  const { data: signedData, error: signError } = await supabase.storage
+    .from(BUCKET)
+    .createSignedUrl(storagePath, 60 * 60 * 24 * 365);
+  if (signError) throw signError;
+
+  
+    console.log("3")
+  const fileUrl = signedData.signedUrl;
+
+    console.log("4")
+  const docRef = await addDoc(
+    collection(db, 'chatRooms', chatId, 'messages'),
+    {
+      chatId,
+      senderId,
+      senderName,
+      text: fileType === 'image' ? '📷 이미지' : `📎 ${fileName}`,
+      fileUrl,
+      fileType,
+      fileName,
+      createdAt: Date.now(),
+      isRead: false,
+    }
+  );
+
+    console.log("5")
+  const roomRef = doc(db, 'chatRooms', chatId);
+  const roomSnap = await getDocs(query(collection(db, 'chatRooms'), where('__name__', '==', chatId)));
+  const participants: string[] = roomSnap.docs[0]?.data().participants ?? [];
+  const updates: Record<string, any> = {
+    lastMessage: fileType === 'image' ? '📷 이미지' : `📎 ${fileName}`,
+    updatedAt: Date.now(),
+  };
+  
+    console.log("6")
+  participants.forEach(uid => {
+    if (uid !== senderId) updates[`unreadCounts.${uid}`] = increment(1);
+  });
+  await updateDoc(roomRef, updates);
+
+    console.log("7")
+  return {
+    id: docRef.id,
+    chatId,
+    senderId,
+    senderName,
+    text: fileType === 'image' ? '📷 이미지' : `📎 ${fileName}`,
+    fileUrl,
+    fileType,
+    fileName,
+    createdAt: Date.now(),
+    isRead: false,
+  };
 }
 
 /**
@@ -200,6 +361,8 @@ export async function sendMessage(
     }
   });
   await updateDoc(roomRef, updates);
+
+ 
 
   return {
     id: docRef.id,

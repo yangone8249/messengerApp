@@ -4,13 +4,13 @@
 // 채팅방 클릭 → /chat/[id] 로 이동
 // =============================================
 
-import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 
 import ChatListItem from '@/src/components/ChatListItem';
 import { useAuth } from '@/src/context/AuthContext';
-import { leaveChat, getChats } from '@/src/services/chatService';
+import { leaveChat, subscribeChats } from '@/src/services/chatService';
 import { Chat } from '@/src/types';
 
 export default function ChatListScreen() {
@@ -19,17 +19,16 @@ export default function ChatListScreen() {
   const [chats, setChats] = useState<Chat[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 화면 포커스될 때마다 재조회 (탭 전환, 뒤로가기 등)
-  useFocusEffect(
-    useCallback(() => {
-      if (!user?.uid) return;
-      setLoading(true);
-      getChats(user.uid).then((data) => {
-        setChats(data);
-        setLoading(false);
-      });
-    }, [user?.uid])
-  );
+  // 실시간 채팅방 목록 구독
+  useEffect(() => {
+    if (!user?.uid) return;
+    setLoading(true);
+    const unsubscribe = subscribeChats(user.uid, (data) => {
+      setChats(data);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, [user?.uid]);
 
   if (loading) {
     return (

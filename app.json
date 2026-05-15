@@ -6,16 +6,14 @@
     "orientation": "portrait",
     "jsEngine": "hermes",
     "ios": {
-      "jsEngine": "jsc"
+      "supportsTablet": true
     },
     "icon": "./assets/images/icon.png",
     "scheme": "massagerapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "ios": {
-      "supportsTablet": true
-    },
     "android": {
+      "googleServicesFile": "./google-services.json",
       "package": "com.nampat.messenger",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -44,7 +42,21 @@
           }
         }
       ],
-      "@react-native-firebase/app"
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "사진 저장을 위해 갤러리 접근 권한이 필요합니다.",
+          "savePhotosPermission": "이미지를 갤러리에 저장하기 위한 권한이 필요합니다.",
+          "isAccessMediaLocationEnabled": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "이미지 전송을 위해 갤러리 접근 권한이 필요합니다."
+        }
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

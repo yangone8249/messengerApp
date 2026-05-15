@@ -14,12 +14,15 @@ export interface User {
 /** 단일 메시지 */
 export interface Message {
   id: string;
-  chatId: string;       // 어느 채팅방에 속하는지
-  senderId: string;     // 보낸 사람 ID
-  senderName: string;     // 보낸 사람 Name
+  chatId: string;
+  senderId: string;
+  senderName: string;
   text: string;
-  createdAt: number;    // timestamp (ms)
+  createdAt: number;
   isRead?: boolean;
+  fileUrl?: string;
+  fileType?: 'image' | 'file';
+  fileName?: string;
 }
 
 export type ChatType = 'self' | 'direct' | 'group';

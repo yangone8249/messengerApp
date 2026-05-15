@@ -6,8 +6,8 @@
 
 import { useAuth } from '@/src/context/AuthContext';
 import React, { useRef } from 'react';
-import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { Chat } from '../types';
 
 interface Props {
@@ -28,15 +28,12 @@ function formatTime(value: any): string {
     d.getFullYear() === now.getFullYear() &&
     d.getMonth() === now.getMonth() &&
     d.getDate() === now.getDate();
-  console.log("isToday : ",isToday);
 
   if (isToday) {
-    console.log("if 진입 성공");
     const h = d.getHours().toString().padStart(2, '0');
     const m = d.getMinutes().toString().padStart(2, '0');
     return `${h}:${m}`;
   }
-    console.log("if 진입 실패");
   return `${d.getMonth() + 1}월 ${d.getDate()}일`;
 }
 
